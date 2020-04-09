@@ -12,9 +12,9 @@ This repository provides an overivew of common applications in machine learning.
 To run an application:
 
 1. Create virtual environment
-  ```sh
-  python3 -m venv
-  ```
+   ```sh
+   python3 -m venv
+   ```
   
 2. Activate it
    ```sh
@@ -27,14 +27,14 @@ To run an application:
    to activate venv on Windows
   
 3. Install dependencies
-  ```sh
-  poetry install
-  ```
+   ```sh
+   poetry install
+   ```
   
 4. Run jupyter notebook
-  ```sh
-  jupyter notebook YOUR_FILE
-  ```
+   ```sh
+   jupyter notebook YOUR_FILE
+   ```
 
 where YOUR_FILE can be:
 * image_classification.ipynb
