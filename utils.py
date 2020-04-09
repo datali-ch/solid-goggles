@@ -1,15 +1,15 @@
-import os
-import zipfile
-from typing import Optional, Tuple, List, Union, Dict
 import csv
-import nltk
-import tensorflow as tf
-import matplotlib.pyplot as plt
-import numpy as np
-from tensorflow.keras.preprocessing.image import img_to_array, load_img
+import datetime
+import os
 import random
-from typing import List
+import zipfile
+from typing import Dict, List, Optional, Tuple, Union
+
 import matplotlib.image as mpimg
+import matplotlib.pyplot as plt
+import nltk
+import numpy as np
+import tensorflow as tf
 
 # Get stopwords as gobal variable
 try:
@@ -49,16 +49,12 @@ def load_text_data(data_file: str, text_column: int, label_column: Optional[int]
     return texts, labels
 
 
-class AccuracyCallback(tf.keras.callbacks.Callback):
+def pick_files_from_directory(dir: str, k: int = 1) -> List[str]:
 
-    def __init__(self, accuracy: float) -> None:
-        self.min_accuracy = accuracy
+    images = random.choices(os.listdir(dir), k=k)
+    path_to_images = [os.path.join(dir, image) for image in images]
 
-    def on_epoch_end(self, epoch, logs={}) -> None:
-        if logs["acc"] > self.min_accuracy:
-            print("Reached {}% accuracy. The training is cancelled".format(
-                self.min_accuracy*100))
-            self.model.stop_training = True
+    return path_to_images
 
 
 def plot_sample_images(directory: str, subdirectories: List[str], img_per_row: int) -> None:
@@ -83,77 +79,6 @@ def plot_sample_images(directory: str, subdirectories: List[str], img_per_row: i
     plt.show()
 
 
-def plot_training_progress(history: tf.keras.callbacks.History, metric: str, plot_validation: bool = True) -> None:
-
-    plt.plot(history.history[metric])
-
-    if plot_validation:
-        plt.plot(history.history['val_' + metric])
-
-    plt.xlabel("Epochs")
-    plt.ylabel(metric)
-
-    if plot_validation:
-        plt.legend([metric, 'val_' + metric])
-    plt.show()
-
-
-def create_n_grams(corpus: List[List[str]], tokenizer: tf.keras.preprocessing.text.Tokenizer, sequence_len: int, max_docs: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray]:
-
-    input_sequences = []
-
-    for j, phrase in enumerate(corpus):
-        token_list = tokenizer.texts_to_sequences([phrase])[0]
-        if len(token_list) < 2:
-            continue
-        elif len(token_list) < sequence_len:
-            input_sequences.append(token_list)
-
-        for i in range(1, len(token_list) - sequence_len):
-            n_gram_sequence = token_list[i:i + sequence_len]
-            input_sequences.append(n_gram_sequence)
-
-        if max_docs and j > max_docs:
-            break
-
-    input_sequences = np.array(tf.keras.preprocessing.sequence.pad_sequences(
-        input_sequences, maxlen=sequence_len, padding='pre'))
-    predictors, predictands = input_sequences[:, :-1], input_sequences[:, -1]
-
-    return predictors, predictands
-
-
-def generate_text(model: tf.keras.models.Model, tokenizer: tf.keras.preprocessing.text.Tokenizer, seed_text: str, next_words: int) -> str:
-
-    index_to_word = {index: word for word,
-                     index in tokenizer.word_index.items()}
-    sequence_len = model.layers[0].input_length
-
-    token_list = tokenizer.texts_to_sequences([seed_text])[0]
-    token_list = np.array(tf.keras.preprocessing.sequence.pad_sequences(
-        [token_list], maxlen=sequence_len, padding='pre'))
-
-    for i in range(next_words):
-
-        curr_sequence = token_list[:, i:i+sequence_len]
-        predicted = model.predict_classes(curr_sequence, verbose=0)
-        token_list = np.append(
-            token_list, np.reshape(predicted, (1, 1)), axis=1)
-
-    generated_text = [index_to_word[index]
-                      for index in token_list[0] if index > 0]
-
-    return " ".join(generated_text)
-
-
-def pick_files_from_directory(dir: str, k: int = 1) -> List[str]:
-
-    images = random.choices(os.listdir(dir), k=k)
-    path_to_images = [os.path.join(dir, image) for image in images]
-
-    return path_to_images
-
-
 def visualize_convolutions(model: tf.keras.models.Model, image: str) -> None:
 
     # Let's define a new Model that will take an image as input, and will output
@@ -164,10 +89,11 @@ def visualize_convolutions(model: tf.keras.models.Model, image: str) -> None:
         inputs=model.input, outputs=successive_outputs)
 
     # Let's prepare a random input image from the training set.
-    img = load_img(image, target_size=(150, 150))  # this is a PIL image
+    img = tf.keras.preprocessing.image.load_img(
+        image, target_size=(150, 150))  # this is a PIL image
 
     # Numpy array with shape (150, 150, 3)
-    x = img_to_array(img)
+    x = tf.keras.preprocessing.image.img_to_array(img)
     # Numpy array with shape (1, 150, 150, 3)
     x = x.reshape((1,) + x.shape)
 
@@ -218,26 +144,65 @@ def visualize_convolutions(model: tf.keras.models.Model, image: str) -> None:
             plt.imshow(display_grid, aspect='auto', cmap='viridis')
 
 
-def preprocess_timeseries(series: List[float], window_size: int, batch_size: int, shuffle_buffer: int) -> tf.data.Dataset:
+class AccuracyCallback(tf.keras.callbacks.Callback):
 
-    series = tf.expand_dims(series, axis=-1)
-    ds = tf.data.Dataset.from_tensor_slices(series)
-    ds = ds.window(window_size + 1, shift=1, drop_remainder=True)
-    ds = ds.flat_map(lambda w: w.batch(window_size + 1))
-    ds = ds.shuffle(buffer_size=shuffle_buffer)
-    ds = ds.map(lambda w: (w[:-1], w[1:]))
-    ds = ds.batch(batch_size).prefetch(1)
+    def __init__(self, accuracy: float) -> None:
+        self.min_accuracy = accuracy
 
-    return ds
+    def on_epoch_end(self, epoch, logs={}) -> None:
+        if logs["acc"] > self.min_accuracy:
+            print("Reached {}% accuracy. The training is cancelled".format(
+                self.min_accuracy*100))
+            self.model.stop_training = True
+
+
+def plot_training_progress(history: tf.keras.callbacks.History, metric: str, plot_validation: bool = True) -> None:
+
+    plt.plot(history.history[metric])
+
+    if plot_validation:
+        plt.plot(history.history['val_' + metric])
+
+    plt.xlabel("Epochs")
+    plt.ylabel(metric)
+
+    if plot_validation:
+        plt.legend([metric, 'val_' + metric])
+    plt.show()
+
+
+def create_n_grams(corpus: List[List[str]], tokenizer: tf.keras.preprocessing.text.Tokenizer, sequence_len: int, max_docs: Optional[int] = None) -> Tuple[np.ndarray, np.ndarray]:
+
+    input_sequences = []
+
+    for j, phrase in enumerate(corpus):
+        token_list = tokenizer.texts_to_sequences([phrase])[0]
+        if len(token_list) < 2:
+            continue
+        elif len(token_list) < sequence_len:
+            input_sequences.append(token_list)
+
+        for i in range(1, len(token_list) - sequence_len):
+            n_gram_sequence = token_list[i:i + sequence_len]
+            input_sequences.append(n_gram_sequence)
+
+        if max_docs and j > max_docs:
+            break
+
+    input_sequences = np.array(tf.keras.preprocessing.sequence.pad_sequences(
+        input_sequences, maxlen=sequence_len, padding='pre'))
+    predictors, predictands = input_sequences[:, :-1], input_sequences[:, -1]
+
+    return predictors, predictands
 
 
 def load_glove_embeddings(file: str) -> Dict:
     """ Load GloVe word embeddings from a file
-        Args:
-            file:                               file with GloVe embeddings. File format as in https://nlp.stanford.edu/projects/glove/
+            Args:
+                    file:                               file with GloVe embeddings. File format as in https://nlp.stanford.edu/projects/glove/
 
-        Returns:
-            word2vec:                           dictionnary mapping word to empedding vector
+            Returns:
+                    word2vec:                           dictionnary mapping word to empedding vector
     """
 
     FOLDER = "embeddings"
@@ -256,15 +221,15 @@ def load_glove_embeddings(file: str) -> Dict:
 
 def create_embedding_layer(word2index: dict, word2vec: dict, input_len: int, max_words: int = 1e6) -> tf.keras.layers.Embedding:
     """ Set up pretrained Embedding layer
-        Credits to: https://keras.io/examples/pretrained_word_embeddings/
-        Args:
-            word2index:                         dictionnary mapping words to indices
-            word2vec:                           dictionnary mapping words to embedding vectors
-                        input_len: 							length of input sequences
-                        max_words (optional):				maximum number of words in a dictionnary
+            Credits to: https://keras.io/examples/pretrained_word_embeddings/
+            Args:
+                    word2index:                         dictionnary mapping words to indices
+                    word2vec:                           dictionnary mapping words to embedding vectors
+                                            input_len: 							length of input sequences
+                                            max_words (optional):				maximum number of words in a dictionnary
 
-        Returns:
-            embedding_layer                     layer with pretrained GloVe word embeddings
+            Returns:
+                    embedding_layer                     layer with pretrained GloVe word embeddings
     """
 
     num_words = min(max_words, len(word2index)) + 1
@@ -295,3 +260,72 @@ def classify_sentence(model: tf.keras.models.Model, tokenizer: tf.keras.preproce
         sequence, padding="post", maxlen=max_sequence_len)
 
     return np.argmax(model.predict(padded))
+
+
+def generate_text(model: tf.keras.models.Model, tokenizer: tf.keras.preprocessing.text.Tokenizer, seed_text: str, next_words: int) -> str:
+
+    index_to_word = {index: word for word,
+                     index in tokenizer.word_index.items()}
+    sequence_len = model.layers[0].input_length
+
+    token_list = tokenizer.texts_to_sequences([seed_text])[0]
+    token_list = np.array(tf.keras.preprocessing.sequence.pad_sequences(
+        [token_list], maxlen=sequence_len, padding='pre'))
+
+    for i in range(next_words):
+
+        curr_sequence = token_list[:, i:i+sequence_len]
+        predicted = model.predict_classes(curr_sequence, verbose=0)
+        token_list = np.append(
+            token_list, np.reshape(predicted, (1, 1)), axis=1)
+
+    generated_text = [index_to_word[index]
+                      for index in token_list[0] if index > 0]
+
+    return " ".join(generated_text)
+
+
+def find_year_index(dates, start_year: int, end_year: Optional[int] = None) -> Tuple[int]:
+
+    start = datetime.date(start_year, 1, 1)
+    for start_index, date in enumerate(dates):
+        if date == start:
+            break
+
+    if end_year:
+        end = datetime.date(end_year, 1, 1)
+        for end_index, date in enumerate(dates[start_index:]):
+            if date == end:
+                break
+
+        end_index += start_index
+    else:
+        end_index = len(dates)
+
+    return start_index, end_index
+
+
+def preprocess_timeseries(series: List[float], window_size: int, batch_size: int, shuffle_buffer: int) -> tf.data.Dataset:
+
+    series = tf.expand_dims(series, axis=-1)
+    dataset = tf.data.Dataset.from_tensor_slices(series)
+    dataset = dataset.window(window_size + 1, shift=1, drop_remainder=True)
+    dataset = dataset.flat_map(lambda w: w.batch(window_size + 1))
+    dataset = dataset.shuffle(buffer_size=shuffle_buffer)
+    dataset = dataset.map(lambda w: (w[:-1], w[1:]))
+    dataset = dataset.batch(batch_size).prefetch(1)
+
+    return dataset
+
+
+def forecast_timeseries(model: tf.keras.models.Model, series: List[float], window_size: int) -> float:
+
+    series = np.array(series)[..., np.newaxis]
+
+    dataset = tf.data.Dataset.from_tensor_slices(series)
+    dataset = dataset.window(window_size, shift=1, drop_remainder=True)
+    dataset = dataset.flat_map(lambda w: w.batch(window_size))
+    dataset = dataset.batch(32).prefetch(1)
+    forecast = model.predict(dataset)
+
+    return forecast
