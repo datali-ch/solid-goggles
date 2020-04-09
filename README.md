@@ -12,16 +12,32 @@ This repository provides an overivew of common applications in machine learning.
 To run an application:
 
 1. Create virtual environment
-```python3 -m venv```
+  ```sh
+  python3 -m venv
+  ```
+  
 2. Activate it
-```source venv/bin/activate``` to activate venv on Linux or  ```venv\Scripts\activate.bat``` to activate venv on Windows
-3. Install  requirements
-```poetry install```
+   ```sh
+   source venv/bin/activate
+   ``` 
+   to activate venv on Linux or  
+   ```sh
+   venv\Scripts\activate.bat
+   ``` 
+   to activate venv on Windows
+  
+3. Install dependencies
+  ```sh
+  poetry install
+  ```
+  
 4. Run jupyter notebook
-```jupyter notebook YOUR_FILE```
+  ```sh
+  jupyter notebook YOUR_FILE
+  ```
 
 where YOUR_FILE can be:
-*image_classification.ipynb
-*sentiment_classification.ipynb
-*text_generation.ipynb
-*forecasting.ipynb
+* image_classification.ipynb
+* sentiment_classification.ipynb
+* text_generation.ipynb
+* forecasting.ipynb
