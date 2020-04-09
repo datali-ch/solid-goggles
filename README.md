@@ -16,7 +16,7 @@ To run an application:
 2. Activate it
 ```source venv/bin/activate``` to activate venv on Linux or  ```venv\Scripts\activate.bat``` to activate venv on Windows
 3. Install  requirements
-```pip install requirements.txt```
+```poetry install```
 4. Run jupyter notebook
 ```jupyter notebook YOUR_FILE```
 
