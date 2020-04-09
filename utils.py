@@ -9,6 +9,7 @@ import numpy as np
 from tensorflow.keras.preprocessing.image import img_to_array, load_img
 import random
 from typing import List
+import matplotlib.image as mpimg
 
 # Get stopwords as gobal variable
 try:
@@ -46,7 +47,7 @@ def load_text_data(data_file: str, text_column: int, label_column: Optional[int]
 
 	return texts, labels
 
-class MyCallback(tf.keras.callbacks.Callback):
+class AccuracyCallback(tf.keras.callbacks.Callback):
 
 	def __init__(self, accuracy: float) -> None:
 		self.min_accuracy = accuracy
@@ -57,7 +58,27 @@ class MyCallback(tf.keras.callbacks.Callback):
 			self.model.stop_training = True
 
 
-def plot_graphs(history: tf.keras.callbacks.History, metric: str, plot_validation: bool = True) -> None:
+def plot_sample_images(directory: str, subdirectories: List[str], img_per_row: int) -> None:
+
+    fig = plt.gcf()
+    fig.set_size_inches(img_per_row*4, len(subdirectories)*4)
+
+    for i, category in enumerate(subdirectories):
+
+        curr_path = os.path.join(directory, category)
+        path_to_images = pick_files_from_directory(curr_path, k=img_per_row)
+
+        for j, image_path in enumerate(path_to_images):
+
+            sp = plt.subplot(len(subdirectories), img_per_row, i*img_per_row + j + 1)
+            sp.axis("Off")
+
+            img = mpimg.imread(image_path)
+            plt.imshow(img)
+
+    plt.show()
+
+def plot_training_progress(history: tf.keras.callbacks.History, metric: str, plot_validation: bool = True) -> None:
 
 	plt.plot(history.history[metric])
 
